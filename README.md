@@ -13,13 +13,16 @@ $ npm install mongoose-history-plugin
 import mongoose from 'mongoose';
 import MongooseHistoryPlugin from 'mongoose-history-plugin';
 
+mongoose.connect('mongodb://localhost/Default');
+
 // Default options
 let options = {
     userCollection: 'users', // Colletcion to ref when you pass an user id
     ignore: [], // List of fields to ignore when compare changes
     noDiffSave: false, // If true save event even if there are no changes
     noEventSave: true, // If false save only when __history property is passed
-    modelName: '__histories' // Name of the collection for the histories
+    modelName: '__histories', // Name of the collection for the histories
+    mongoose: mongoose // A mongoose instance
 };
 
 // Add the plugin to the schema with default options

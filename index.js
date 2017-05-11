@@ -1,10 +1,11 @@
-let mongoose = require('mongoose');
-let JsonDiffPatch = require('jsondiffpatch');
-let semver = require('semver');
+let JsonDiffPatch = require('jsondiffpatch'),
+    semver = require('semver');
 
 // Example of use:
 // import mongoose from 'mongoose';
 // import MongooseHistoryPlugin from 'mongoose-history-plugin';
+//
+// mongoose.connect('mongodb://localhost/Default');
 //
 // // Default options
 // let options = {
@@ -12,7 +13,8 @@ let semver = require('semver');
 //     ignore: [], // List of fields to ignore when compare changes
 //     noDiffSave: false, // If true save event even if there are no changes
 //     noEventSave: true, // If false save only when __history property is passed
-//     modelName: '__histories' // Name of the collection for the histories
+//     modelName: '__histories', // Name of the collection for the histories,
+//     mongoose: mongoose // A mongoose instance
 // };
 //
 // // Add the plugin to the schema with default options
@@ -92,10 +94,17 @@ let historyPlugin = (options = {}) => {
         userCollection: 'users', // Colletcion to ref when you pass an user id
         ignore: [], // List of fields to ignore when compare changes
         noDiffSave: false, // Save event even if there are no changes
-        noEventSave: true
+        noEventSave: true,
+        mongoose: false
     };
 
     Object.assign(pluginOptions, options);
+
+    if (pluginOptions.mongoose === false) {
+        throw new Error('You need to pass a mongoose instance');
+    }
+
+    let mongoose = pluginOptions.mongoose;
 
     let Schema = new mongoose.Schema({
         collectionName: String,
@@ -315,7 +324,5 @@ let historyPlugin = (options = {}) => {
 
     return plugin;
 };
-
-historyPlugin.default = historyPlugin;
 
 module.exports = historyPlugin;
