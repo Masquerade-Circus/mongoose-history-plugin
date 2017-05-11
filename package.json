@@ -1,6 +1,6 @@
 {
   "name": "mongoose-history-plugin",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Mongoose plugin that saves history in JsonPatch format and SemVer format",
   "main": "index.js",
   "scripts": {
