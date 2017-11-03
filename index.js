@@ -116,6 +116,8 @@ let historyPlugin = (options = {}) => {
         user: {type: mongoose.Schema.Types.ObjectId, ref: pluginOptions.userCollection},
         version: {type: String, default: '0.0.0'},
         timestamp: Date
+    },{
+        collection: pluginOptions.modelName
     });
 
     Schema.set('minimize', false);
