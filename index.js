@@ -7,9 +7,14 @@ let JsonDiffPatch = require('jsondiffpatch'),
 //
 // mongoose.connect('mongodb://localhost/Default');
 //
-// // Default options
+// Default options
 // let options = {
 //     userCollection: 'users', // Colletcion to ref when you pass an user id
+//     accountCollection: 'accounts', // Collection to ref when you pass an account id or the item has an account property
+//     userFieldName: 'user', // Name of the property for the user
+//     accountFieldName: 'account', // Name of the property of the account if any
+//     timestampFieldName: 'timestamp', // Name of the property of the timestamp
+//     methodFieldName: 'method', // Name of the property of the method
 //     ignore: [], // List of fields to ignore when compare changes
 //     noDiffSave: false, // If true save event even if there are no changes
 //     noEventSave: true, // If false save only when __history property is passed
@@ -33,7 +38,8 @@ let JsonDiffPatch = require('jsondiffpatch'),
 //         user : undefined, // An object id of the user that generate the event
 //         reason : undefined,
 //         data : undefined, // Additional data to save with the event
-//         type: undefined // One of 'patch', 'minor', 'major'. If undefined defaults to 'major'
+//         type: undefined, // One of 'patch', 'minor', 'major'. If undefined defaults to 'major'
+//         method: 'newTank' // Optional and intended for method reference
 //     }
 // });
 // small.save()
@@ -46,7 +52,8 @@ let JsonDiffPatch = require('jsondiffpatch'),
 //             user : undefined,
 //             reason : undefined,
 //             data : undefined,
-//             type: undefined
+//             type: undefined,
+//             method: 'updateTank'
 //         };
 //
 //         return small.save();
@@ -91,7 +98,12 @@ let JsonDiffPatch = require('jsondiffpatch'),
 let historyPlugin = (options = {}) => {
     let pluginOptions = {
         modelName: '__histories', // Name of the collection for the histories
-        userCollection: 'users', // Colletcion to ref when you pass an user id
+        userCollection: 'users', // Collection to ref when you pass an user id
+        accountCollection: 'accounts', // Collection to ref when you pass an account id or the item has an account property
+        userFieldName: 'user', // Name of the property for the user
+        accountFieldName: 'account', // Name of the property of the account if any
+        timestampFieldName: 'timestamp', // Name of the property of the timestamp
+        methodFieldName: 'method', // Name of the property of the method
         ignore: [], // List of fields to ignore when compare changes
         noDiffSave: false, // Save event even if there are no changes
         noEventSave: true,
@@ -113,9 +125,11 @@ let historyPlugin = (options = {}) => {
         event: String,
         reason: String,
         data: {type: mongoose.Schema.Types.Mixed},
-        user: {type: mongoose.Schema.Types.ObjectId, ref: pluginOptions.userCollection},
+        [pluginOptions.userFieldName]: {type: mongoose.Schema.Types.ObjectId, ref: pluginOptions.userCollection},
+        [pluginOptions.accountFieldName]: {type: mongoose.Schema.Types.ObjectId, ref: pluginOptions.accountCollection},
         version: {type: String, default: '0.0.0'},
-        timestamp: Date
+        [pluginOptions.timestampFieldName]: Date,
+        [pluginOptions.methodFieldName]: String
     },{
         collection: pluginOptions.modelName
     });
@@ -123,6 +137,11 @@ let historyPlugin = (options = {}) => {
     Schema.set('minimize', false);
     Schema.set('versionKey', false);
     Schema.set('strict', true);
+
+    Schema.pre("save", function (next) {
+        this[pluginOptions.timestampFieldName] = new Date();
+        next();
+    });
 
     let Model = mongoose.model(pluginOptions.modelName, Schema);
 
@@ -189,14 +208,15 @@ let historyPlugin = (options = {}) => {
                             let obj = {};
                             obj.collectionName = this.constructor.modelName;
                             obj.collectionId = this._id;
-                            obj.diff = diff;
-                            obj.timestamp = new Date();
+                            obj.diff = diff || {};
 
                             if (this.__history) {
                                 obj.event = this.__history.event;
-                                obj.user = this.__history.user;
+                                obj[pluginOptions.userFieldName] = this.__history[pluginOptions.userFieldName];
+                                obj[pluginOptions.accountFieldName] = this[pluginOptions.accountFieldName] || this.__history[pluginOptions.accountFieldName];
                                 obj.reason = this.__history.reason;
                                 obj.data = this.__history.data;
+                                obj[pluginOptions.methodFieldName] = this.__history[pluginOptions.methodFieldName];
                             }
 
                             let version;
@@ -210,6 +230,11 @@ let historyPlugin = (options = {}) => {
                             }
 
                             obj.version = version || '0.0.0';
+                            for (let i in obj) {
+                                if (obj[i] === undefined) {
+                                    delete obj[i];
+                                }
+                            }
 
                             let history = new Model(obj);
 

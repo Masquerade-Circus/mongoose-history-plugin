@@ -18,6 +18,11 @@ mongoose.connect('mongodb://localhost/Default');
 // Default options
 let options = {
     userCollection: 'users', // Colletcion to ref when you pass an user id
+    accountCollection: 'accounts', // Collection to ref when you pass an account id or the item has an account property
+    userFieldName: 'user', // Name of the property for the user
+    accountFieldName: 'account', // Name of the property of the account if any
+    timestampFieldName: 'timestamp', // Name of the property of the timestamp
+    methodFieldName: 'method', // Name of the property of the method
     ignore: [], // List of fields to ignore when compare changes
     noDiffSave: false, // If true save event even if there are no changes
     noEventSave: true, // If false save only when __history property is passed
@@ -41,7 +46,8 @@ let small = new Tank({
         user : undefined, // An object id of the user that generate the event
         reason : undefined,
         data : undefined, // Additional data to save with the event
-        type: undefined // One of 'patch', 'minor', 'major'. If undefined defaults to 'major'
+        type: undefined, // One of 'patch', 'minor', 'major'. If undefined defaults to 'major'
+        method: 'newTank' // Optional and intended for method reference
     }
 });
 small.save()
@@ -54,7 +60,8 @@ small.save()
             user : undefined,
             reason : undefined,
             data : undefined,
-            type: undefined
+            type: undefined,
+            method: 'updateTank'
         };
 
         return small.save();
