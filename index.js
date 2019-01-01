@@ -262,15 +262,9 @@ let historyPlugin = (options = {}) => {
             next();
         }
 
-        schema.pre("save", function(next) {
-          console.log('\n\n\n\n\n\nMIDDLEWARE SAVE\n\n\n\n\\n\n\n');
-          preSave.bind(this)(next);
-        });
+        schema.pre("save", preSave);
 
-        schema.pre("remove", function(next) {
-          console.log('\n\n\n\n\n\nMIDDLEWARE REMOVE\n\n\n\n\\n\n\n');
-          preSave.bind(this)(next);
-        });
+        schema.pre("remove", preSave);
 
         // diff.find
         schema.methods.getDiffs = function (options = {}) {
