@@ -4,6 +4,11 @@ Mongoose plugin that saves documents history in [JsonPatch](http://jsonpatch.com
 ## Install
 This is a [Node.js](https://nodejs.org/en/) module available through the [npm registry](https://www.npmjs.com/). Installation is done using the [`npm install` command](https://docs.npmjs.com/getting-started/installing-npm-packages-locally):
 
+If using mongoose 4.x.x remove will only save if calling model.remove.
+Mongoose 5.x now applies middleware hooks for remove on both schema and model.
+
+See https://mongoosejs.com/docs/middleware.html 
+
 ```bash
 $ npm install mongoose-history-plugin
 ```
@@ -25,6 +30,7 @@ let options = {
     methodFieldName: 'method', // Name of the property of the method
     ignore: [], // List of fields to ignore when compare changes
     noDiffSave: false, // If true save event even if there are no changes
+    noDiffSaveOnMethods: ['delete'], // If a method is in this list, it saves history even if there is no diff. 
     noEventSave: true, // If false save only when __history property is passed
     modelName: '__histories', // Name of the collection for the histories
     mongoose: mongoose // A mongoose instance
@@ -93,6 +99,45 @@ small.save()
 
     });
 
+
+small.remove()
+  .then(small => {
+    small.__history = {
+      event: 'removed',
+      user : undefined,
+      reason : undefined,
+      data : undefined,
+      type: undefined,
+      method: 'delete'
+    };
+
+    return small.remove();
+  }).then(small => {
+      // All options are optional
+      let options = {
+          find: {}, // Must be an object
+          select: {}, // Must be an object
+          sort: '',
+          populate: '',
+          limit: 20
+      };
+
+      // Get the diff histories in JsonDiffPatch format
+      small.getDiffs(options).then(console.log);
+
+      // Get a diff history in JsonDiffPatch format
+      small.getDiff('2.0.0').then(console.log);
+
+      // Get the versions
+      small.getVersions(options).then(console.log);
+
+      // Get a version
+      small.getVersion('2.0.0').then(console.log);
+
+      // Compare two versions
+      // In the case of delete, the diff is empty because the object is not changed.
+      small.compareVersions('1.0.0', '2.0.0').then(console.log);
+  });
 
 // Add the plugin to many schemas with a single history collection
 let plugin = MongooseHistoryPlugin(options);
