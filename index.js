@@ -106,6 +106,7 @@ let historyPlugin = (options = {}) => {
         methodFieldName: 'method', // Name of the property of the method
         ignore: [], // List of fields to ignore when compare changes
         noDiffSave: false, // Save event even if there are no changes
+        noDiffSaveOnMethods: [], // Save event even if there are no changes if method matches
         noEventSave: true,
         mongoose: false
     };
@@ -142,6 +143,8 @@ let historyPlugin = (options = {}) => {
         this[pluginOptions.timestampFieldName] = new Date();
         next();
     });
+
+
 
     let Model = mongoose.model(pluginOptions.modelName, Schema);
 
@@ -185,7 +188,7 @@ let historyPlugin = (options = {}) => {
             __history: {type: mongoose.Schema.Types.Mixed}
         });
 
-        schema.pre("save", function (next) {
+        let preSave = function (next) {
             if (this.__history !== undefined || pluginOptions.noEventSave) {
                 return this.constructor.findById(this._id).then(previous => {
                     let currentObject = JSON.parse(JSON.stringify(this)),
@@ -203,7 +206,15 @@ let historyPlugin = (options = {}) => {
 
                     let diff = jdf.diff(previousObject, currentObject);
 
-                    if (diff || pluginOptions.noDiffSave) {
+                    let saveWithoutDiff = false;
+                    if(this.__history && pluginOptions.noDiffSaveOnMethods.length) {
+                      let method = this.__history[pluginOptions.methodFieldName];
+                      if(pluginOptions.noDiffSaveOnMethods.includes(method)) {
+                        saveWithoutDiff = true;
+                      }
+                    }
+
+                    if (diff || pluginOptions.noDiffSave || saveWithoutDiff) {
                         return Model.findOne({collectionName: this.constructor.modelName, collectionId: this ._id}).sort("-version").select({version: 1}).then(lastHistory => {
                             let obj = {};
                             obj.collectionName = this.constructor.modelName;
@@ -249,7 +260,11 @@ let historyPlugin = (options = {}) => {
             }
 
             next();
-        });
+        }
+
+        schema.pre("save", preSave);
+
+        schema.pre("remove", preSave);
 
         // diff.find
         schema.methods.getDiffs = function (options = {}) {
