@@ -188,83 +188,88 @@ let historyPlugin = (options = {}) => {
             __history: {type: mongoose.Schema.Types.Mixed}
         });
 
-        let preSave = function (next) {
-            if (this.__history !== undefined || pluginOptions.noEventSave) {
-                return this.constructor.findById(this._id).then(previous => {
-                    let currentObject = JSON.parse(JSON.stringify(this)),
-                        previousObject = previous ? JSON.parse(JSON.stringify(previous)) : {};
+        let preSave = function(forceDiff) {
+            return function (next) {
+              if (this.__history !== undefined || pluginOptions.noEventSave) {
+                  return this.constructor.findById(this._id).then(previous => {
+                      let currentObject = JSON.parse(JSON.stringify(this)),
+                          previousObject = previous ? JSON.parse(JSON.stringify(previous)) : {};
 
-                    delete currentObject.__history;
-                    delete previousObject.__history;
-                    delete currentObject.__v;
-                    delete previousObject.__v;
+                      delete currentObject.__history;
+                      delete previousObject.__history;
+                      delete currentObject.__v;
+                      delete previousObject.__v;
 
-                    for (let i in pluginOptions.ignore) {
-                        delete currentObject[pluginOptions.ignore[i]];
-                        delete previousObject[pluginOptions.ignore[i]];
-                    }
-
-                    let diff = jdf.diff(previousObject, currentObject);
-
-                    let saveWithoutDiff = false;
-                    if(this.__history && pluginOptions.noDiffSaveOnMethods.length) {
-                      let method = this.__history[pluginOptions.methodFieldName];
-                      if(pluginOptions.noDiffSaveOnMethods.includes(method)) {
-                        saveWithoutDiff = true;
+                      for (let i in pluginOptions.ignore) {
+                          delete currentObject[pluginOptions.ignore[i]];
+                          delete previousObject[pluginOptions.ignore[i]];
                       }
-                    }
 
-                    if (diff || pluginOptions.noDiffSave || saveWithoutDiff) {
-                        return Model.findOne({collectionName: this.constructor.modelName, collectionId: this ._id}).sort("-version").select({version: 1}).then(lastHistory => {
-                            let obj = {};
-                            obj.collectionName = this.constructor.modelName;
-                            obj.collectionId = this._id;
-                            obj.diff = diff || {};
+                      let diff = jdf.diff(previousObject, currentObject);
 
-                            if (this.__history) {
-                                obj.event = this.__history.event;
-                                obj[pluginOptions.userFieldName] = this.__history[pluginOptions.userFieldName];
-                                obj[pluginOptions.accountFieldName] = this[pluginOptions.accountFieldName] || this.__history[pluginOptions.accountFieldName];
-                                obj.reason = this.__history.reason;
-                                obj.data = this.__history.data;
-                                obj[pluginOptions.methodFieldName] = this.__history[pluginOptions.methodFieldName];
-                            }
+                      let saveWithoutDiff = false;
+                      if(this.__history && pluginOptions.noDiffSaveOnMethods.length) {
+                        let method = this.__history[pluginOptions.methodFieldName];
+                        if(pluginOptions.noDiffSaveOnMethods.includes(method)) {
+                          saveWithoutDiff = true;
+                          if (forceSave) {
+                            diff = previousObject;
+                          }
+                        }
+                      }
 
-                            let version;
+                      if (diff || pluginOptions.noDiffSave || saveWithoutDiff) {
+                          return Model.findOne({collectionName: this.constructor.modelName, collectionId: this ._id}).sort("-version").select({version: 1}).then(lastHistory => {
+                              let obj = {};
+                              obj.collectionName = this.constructor.modelName;
+                              obj.collectionId = this._id;
+                              obj.diff = diff || {};
 
-                            if (lastHistory) {
-                                let type = this.__history && this.__history.type ?
-                                    this.__history.type :
-                                    'major';
+                              if (this.__history) {
+                                  obj.event = this.__history.event;
+                                  obj[pluginOptions.userFieldName] = this.__history[pluginOptions.userFieldName];
+                                  obj[pluginOptions.accountFieldName] = this[pluginOptions.accountFieldName] || this.__history[pluginOptions.accountFieldName];
+                                  obj.reason = this.__history.reason;
+                                  obj.data = this.__history.data;
+                                  obj[pluginOptions.methodFieldName] = this.__history[pluginOptions.methodFieldName];
+                              }
 
-                                version = semver.inc(lastHistory.version, type);
-                            }
+                              let version;
 
-                            obj.version = version || '0.0.0';
-                            for (let i in obj) {
-                                if (obj[i] === undefined) {
-                                    delete obj[i];
-                                }
-                            }
+                              if (lastHistory) {
+                                  let type = this.__history && this.__history.type ?
+                                      this.__history.type :
+                                      'major';
 
-                            let history = new Model(obj);
+                                  version = semver.inc(lastHistory.version, type);
+                              }
 
-                            this.__history = undefined;
-                            return history.save();
-                        });
-                    }
+                              obj.version = version || '0.0.0';
+                              for (let i in obj) {
+                                  if (obj[i] === undefined) {
+                                      delete obj[i];
+                                  }
+                              }
 
-                })
-                .then(() => next())
-                .catch(console.log);
+                              let history = new Model(obj);
+
+                              this.__history = undefined;
+                              return history.save();
+                          });
+                      }
+
+                  })
+                  .then(() => next())
+                  .catch(console.log);
+              }
+
+              next();
             }
-
-            next();
         }
 
-        schema.pre("save", preSave);
+        schema.pre("save", preSave(false));
 
-        schema.pre("remove", preSave);
+        schema.pre("remove", preSave(true));
 
         // diff.find
         schema.methods.getDiffs = function (options = {}) {
