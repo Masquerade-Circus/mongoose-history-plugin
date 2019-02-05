@@ -1,3 +1,9 @@
+services:
+  - mongodb
+
+before_script:
+  - sleep 15
+
 language: node_js
 
 node_js:
