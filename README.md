@@ -1,4 +1,4 @@
-[![npm version](https://img.shields.io/npm/v/mongoose-history-plugin.svg?style=flat)](https://npmjs.org/package/mongoose-history-plugin 'View this project on npm')
+[![npm version](https://img.shields.io/npm/v/mongoose-history-plugin.svg?style=flat)](https://npmjs.org/package/mongoose-history-plugin "View this project on npm")
 [![Build Status](https://travis-ci.org/Masquerade-Circus/mongoose-history-plugin.svg?branch=master)](https://travis-ci.org/Masquerade-Circus/mongoose-history-plugin)
 [![Dependencies](https://img.shields.io/david/masquerade-circus/mongoose-history-plugin.svg?style=flat)](https://david-dm.org/masquerade-circus/mongoose-history-plugin)
 ![](https://img.shields.io/github/issues/masquerade-circus/mongoose-history-plugin.svg)
@@ -12,6 +12,14 @@
 
 Mongoose plugin that saves documents history in [JsonPatch](http://jsonpatch.com/) format and [SemVer](http://semver.org/) format.
 
+## Table of Contents
+
+-   [Install](#install)
+-   [Use](#use)
+-   [Tests](#tests)
+-   [Contributing](#contributing)
+-   [Legal](#legal)
+
 ## Install
 
 This is a [Node.js](https://nodejs.org/en/) module available through the [npm registry](https://www.npmjs.com/). Installation is done using the [`npm install` command](https://docs.npmjs.com/getting-started/installing-npm-packages-locally):
@@ -19,7 +27,7 @@ This is a [Node.js](https://nodejs.org/en/) module available through the [npm re
 If using mongoose 4.x.x remove will only save if calling model.remove.
 Mongoose 5.x now applies middleware hooks for remove on both schema and model.
 
-See https://mongoosejs.com/docs/middleware.html
+See <https://mongoosejs.com/docs/middleware.html>
 
 ```bash
 $ npm install mongoose-history-plugin
@@ -179,9 +187,9 @@ For development use `npm dev:test`
 
 ## Contributing
 
-- Use prettify and eslint to lint your code.
-- Add tests for any new or changed functionality.
-- Update the readme with an example if you add or change any functionality.
+-   Use prettify and eslint to lint your code.
+-   Add tests for any new or changed functionality.
+-   Update the readme with an example if you add or change any functionality.
 
 ## Legal
 
