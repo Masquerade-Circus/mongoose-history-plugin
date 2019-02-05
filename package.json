@@ -4,7 +4,9 @@
   "description": "Mongoose plugin that saves history in JsonPatch format and SemVer format",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev:test": "ava --watch --verbose",
+    "test": "nyc ava",
+    "coverage": "nyc report --reporter=text-lcov | coveralls"
   },
   "repository": {
     "type": "git",
@@ -34,17 +36,29 @@
     "url": "https://github.com/Masquerade-Circus/mongoose-history-plugin/issues"
   },
   "homepage": "https://github.com/Masquerade-Circus/mongoose-history-plugin#readme",
-  "jscsConfig": {
-    "preset": "crockford",
-    "disallowDanglingUnderscores": false
-  },
-  "jshintConfig": {
-    "esversion": 6,
-    "-W083": true,
-    "expr": true
-  },
   "dependencies": {
-    "jsondiffpatch": "^0.2.4",
+    "jsondiffpatch": "^0.3.11",
     "semver": "^5.3.0"
+  },
+  "devDependencies": {
+    "ava": "^1.1.0",
+    "coveralls": "^3.0.2",
+    "expect": "^24.0.0",
+    "mongoose": "^5.4.9",
+    "nyc": "^13.1.0"
+  },
+  "ava": {
+    "files": [
+      "tests/**/*_test.js"
+    ],
+    "sources": [
+      "**/*.{js,jsx}"
+    ],
+    "failWithoutAssertions": false
+  },
+  "nyc": {
+    "exclude": [
+      "tests"
+    ]
   }
 }
