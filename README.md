@@ -54,6 +54,8 @@ let options = {
   noDiffSaveOnMethods: ['delete'], // If a method is in this list, it saves history even if there is no diff.
   noEventSave: true, // If false save only when __history property is passed
   modelName: '__histories', // Name of the collection for the histories
+  embeddedDocument: false, // Is this a sub document
+  embeddedModelName: '', // Name of model if used with embedded document
   mongoose: mongoose // A mongoose instance
 };
 

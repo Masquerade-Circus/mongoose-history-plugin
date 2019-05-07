@@ -4,6 +4,8 @@ let JsonDiffPatch = require('jsondiffpatch'),
 let historyPlugin = (options = {}) => {
   let pluginOptions = {
     modelName: '__histories', // Name of the collection for the histories
+    embeddedDocument: false, // Is this a sub document
+    embeddedModelName: '', // Name of model if used with embedded document
     userCollection: 'users', // Collection to ref when you pass an user id
     accountCollection: 'accounts', // Collection to ref when you pass an account id or the item has an account property
     userFieldName: 'user', // Name of the property for the user
@@ -61,6 +63,10 @@ let historyPlugin = (options = {}) => {
 
   let Model = mongoose.model(pluginOptions.modelName, Schema);
 
+  let getModelName = (defaultName) => {
+    return (pluginOptions.embeddedDocument) ? pluginOptions.embeddedModelName : defaultName;
+  }
+
   let jdf = JsonDiffPatch.create({
     objectHash: function (obj, index) {
       if (obj !== undefined) {
@@ -107,8 +113,19 @@ let historyPlugin = (options = {}) => {
     let preSave = function (forceSave) {
       return function (next) {
         if (this.__history !== undefined || pluginOptions.noEventSave) {
-          return this.constructor
-            .findById(this._id)
+          let getPrevious;
+          if (pluginOptions.embeddedDocument) {
+            // because the new version would have been saved already by the parent,
+            // get the older version from the history collection
+            getPrevious = this.getVersions().then(versions => {
+              if (versions[0]) return versions[0].object;
+              else return {};
+            });
+          } else {
+            getPrevious = this.constructor.findById(this._id);
+          }
+
+          return getPrevious
             .then((previous) => {
               let currentObject = JSON.parse(JSON.stringify(this)),
                 previousObject = previous
@@ -140,14 +157,14 @@ let historyPlugin = (options = {}) => {
 
               if (diff || pluginOptions.noDiffSave || saveWithoutDiff) {
                 return Model.findOne({
-                  collectionName: this.constructor.modelName,
+                  collectionName: getModelName(this.constructor.modelName),
                   collectionId: this._id
                 })
                   .sort('-version')
                   .select({ version: 1 })
                   .then((lastHistory) => {
                     let obj = {};
-                    obj.collectionName = this.constructor.modelName;
+                    obj.collectionName = getModelName(this.constructor.modelName);
                     obj.collectionId = this._id;
                     obj.diff = diff || {};
 
@@ -208,7 +225,7 @@ let historyPlugin = (options = {}) => {
     schema.methods.getDiffs = function (options = {}) {
       options.find = options.find || {};
       Object.assign(options.find, {
-        collectionName: this.constructor.modelName,
+        collectionName: getModelName(this.constructor.modelName),
         collectionId: this._id
       });
 
@@ -221,7 +238,7 @@ let historyPlugin = (options = {}) => {
     schema.methods.getDiff = function (version, options = {}) {
       options.find = options.find || {};
       Object.assign(options.find, {
-        collectionName: this.constructor.modelName,
+        collectionName: getModelName(this.constructor.modelName),
         collectionId: this._id,
         version: version
       });
