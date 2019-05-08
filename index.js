@@ -64,8 +64,8 @@ let historyPlugin = (options = {}) => {
   let Model = mongoose.model(pluginOptions.modelName, Schema);
 
   let getModelName = (defaultName) => {
-    return (pluginOptions.embeddedDocument) ? pluginOptions.embeddedModelName : defaultName;
-  }
+    return pluginOptions.embeddedDocument ? pluginOptions.embeddedModelName : defaultName;
+  };
 
   let jdf = JsonDiffPatch.create({
     objectHash: function (obj, index) {
@@ -118,8 +118,9 @@ let historyPlugin = (options = {}) => {
             // because the new version would have been saved already by the parent,
             // get the older version from the history collection
             getPrevious = this.getVersions().then(versions => {
-              if (versions[0]) return versions[0].object;
-              else return {};
+              return versions[0] ?
+                versions[0].object :
+                {};
             });
           } else {
             getPrevious = this.constructor.findById(this._id);
