@@ -29,6 +29,11 @@ const HistoryPlugin = MongooseHistoryPlugin(options);
 const CompiledSchema = mongoose.Schema({ name: 'string', size: 'string' });
 CompiledSchema.plugin(HistoryPlugin);
 
+const embeddedOptionDefaults = {embeddedDocument: true, embeddedModelName: 'EmbeddedCollection', modelName: '__embedded_histories'};
+const embeddedOptions = Object.assign({}, options, embeddedOptionDefaults);
+const EmbeddedSchema = mongoose.Schema({ name: 'string', size: 'string' });
+EmbeddedSchema.plugin(MongooseHistoryPlugin(embeddedOptions));
+
 test('should add the plugin to a schema', async (t) => {
   // Create a new schema
   let Schema = mongoose.Schema({ name: 'string', size: 'string' });
@@ -216,4 +221,36 @@ test('should compare two versions', async (t) => {
     left: { _id: String(small._id), size: 'small' },
     right: { _id: String(small._id), size: 'large' }
   });
+});
+
+test('should create history for sub documents', async (t) => {
+  let parentSchema = mongoose.Schema({tanks: [EmbeddedSchema]});
+  let Parent = mongoose.model('parent', parentSchema);
+
+  let tanks = new Parent({tanks: [{size: 'small'}]});
+  await tanks.save();
+  tanks.tanks[0].size = 'large';
+  await tanks.save();
+
+  let tank = tanks.tanks[0];
+  let diffs = await tank.getDiffs();
+
+  expect(diffs).toEqual([
+    {
+      _id: expect.any(Object),
+      version: '1.0.0',
+      collectionName: 'EmbeddedCollection',
+      collectionId: tank._id,
+      diff: { size: ['small', 'large'] },
+      timestamp: expect.any(Date)
+    },
+    {
+      _id: expect.any(Object),
+      version: '0.0.0',
+      collectionName: 'EmbeddedCollection',
+      collectionId: tank._id,
+      diff: { _id: [String(tank._id)], size: ['small'] },
+      timestamp: expect.any(Date)
+    }
+  ]);
 });
