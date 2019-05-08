@@ -39,13 +39,13 @@
   "homepage": "https://github.com/Masquerade-Circus/mongoose-history-plugin#readme",
   "dependencies": {
     "jsondiffpatch": "^0.3.11",
-    "semver": "^5.3.0"
+    "semver": "^6.0.0"
   },
   "devDependencies": {
-    "ava": "^1.1.0",
-    "coveralls": "^3.0.2",
-    "expect": "^24.0.0",
-    "mongoose": "^5.4.9",
+    "ava": "^1.4.1",
+    "coveralls": "^3.0.3",
+    "expect": "^24.8.0",
+    "mongoose": "^5.5.6",
     "nyc": "^14.1.0",
     "remark-cli": "^6.0.1",
     "remark-toc": "^5.1.1"
