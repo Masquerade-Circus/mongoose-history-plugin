@@ -254,3 +254,69 @@ test('should create history for sub documents', async (t) => {
     }
   ]);
 });
+
+test('should sort patch versions above 10 correctly', async (t) => {
+  let Tank = mongoose.model('tank', CompiledSchema);
+  let small = new Tank({
+    size: 'small'
+  });
+  await small.save();
+
+  for (let i = 0; i < 10; i++) {
+    small.size = 'small-' + i;
+    small.__history = { type: 'patch' };
+    await small.save();
+  }
+  let versions = await small.getVersions();
+  expect(versions[versions.length - 1].version).toBe('0.0.10');
+
+});
+
+test('should sort minor versions above 10 correctly', async (t) => {
+  let Tank = mongoose.model('tank', CompiledSchema);
+  let small = new Tank({
+    size: 'small'
+  });
+  await small.save();
+
+  for (let i = 0; i < 10; i++) {
+    small.size = 'small-' + i;
+    small.__history = { type: 'minor' };
+    await small.save();
+  }
+  let versions = await small.getVersions();
+  expect(versions[versions.length - 1].version).toBe('0.10.0');
+
+});
+
+test('should sort major versions above 10 correctly', async (t) => {
+  let Tank = mongoose.model('tank', CompiledSchema);
+  let small = new Tank({
+    size: 'small'
+  });
+  await small.save();
+
+  for (let i = 0; i < 10; i++) {
+    small.size = 'small-' + i;
+    await small.save();
+  }
+  let versions = await small.getVersions();
+  expect(versions[versions.length - 1].version).toBe('10.0.0');
+
+});
+
+test('should get a version above 10 correctly', async (t) => {
+  let Tank = mongoose.model('tank', CompiledSchema);
+  let small = new Tank({
+    size: 'small'
+  });
+  await small.save();
+
+  for (let i = 0; i < 10; i++) {
+    small.size = 'small-' + i;
+    await small.save();
+  }
+  let version = await small.getVersion('10.0.0');
+  expect(version.object.size).toBe('small-9');
+
+});
