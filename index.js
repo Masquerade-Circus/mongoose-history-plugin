@@ -3,6 +3,7 @@ let JsonDiffPatch = require('jsondiffpatch'),
 
 let historyPlugin = (options = {}) => {
   let pluginOptions = {
+    mongoose: false, // A mongoose instance
     modelName: '__histories', // Name of the collection for the histories
     embeddedDocument: false, // Is this a sub document
     embeddedModelName: '', // Name of model if used with embedded document
@@ -15,8 +16,13 @@ let historyPlugin = (options = {}) => {
     ignore: [], // List of fields to ignore when compare changes
     noDiffSave: false, // Save event even if there are no changes
     noDiffSaveOnMethods: [], // Save event even if there are no changes if method matches
-    noEventSave: true,
-    mongoose: false
+    noEventSave: true, // If false save only when __history property is passed
+
+    // If true save only the _id of the populated fields
+    // If false save the whole object of the populated fields
+    // If false and a populated field property changes it triggers a new history
+    // You need to populate the field after a change is made on the original document or it will not catch the differences
+    ignorePopulatedFields: true
   };
 
   Object.assign(pluginOptions, options);
@@ -105,113 +111,166 @@ let historyPlugin = (options = {}) => {
     return query.lean();
   };
 
+  let getPreviousVersion = async (document) => {
+    // get the older version from the history collection
+    let versions = await document.getVersions();
+    return versions[0] ?
+      versions[0].object :
+      {};
+  };
+
+  let getPopulatedFields = (document) => {
+    let populatedFields = [];
+    // we only depopulate the first depth of fields
+    for (let field in document) {
+      if (document.populated(field)) {
+        populatedFields.push(field);
+      }
+    }
+
+    return populatedFields;
+  };
+
+  let depopulate = (document, populatedFields) => {
+    // we only depopulate the first depth of fields
+    for (let field of populatedFields) {
+      document.depopulate(field);
+    }
+  };
+
+  let repopulate = async (document, populatedFields) => {
+    for (let field of populatedFields) {
+      await document.populate(field).execPopulate();
+    }
+  };
+
+  let cloneObjectByJson = (object) => object
+    ? JSON.parse(JSON.stringify(object))
+    : {};
+
+  let cleanFields = (object) => {
+    delete object.__history;
+    delete object.__v;
+
+    for (let i in pluginOptions.ignore) {
+      delete object[pluginOptions.ignore[i]];
+    }
+    return object;
+  };
+
+  let getDiff = ({prev, current, document, forceSave}) => {
+    let diff = jdf.diff(prev, current);
+
+    let saveWithoutDiff = false;
+    if (document.__history && pluginOptions.noDiffSaveOnMethods.length) {
+      let method = document.__history[pluginOptions.methodFieldName];
+      if (pluginOptions.noDiffSaveOnMethods.includes(method)) {
+        saveWithoutDiff = true;
+        if (forceSave) {
+          diff = prev;
+        }
+      }
+    }
+
+    return {
+      diff,
+      saveWithoutDiff
+    };
+  };
+
+  let saveHistory = async ({document, diff}) => {
+    let lastHistory = await Model.findOne({
+      collectionName: getModelName(document.constructor.modelName),
+      collectionId: document._id
+    })
+      .sort('-' + pluginOptions.timestampFieldName)
+      .select({ version: 1 });
+
+
+    let obj = {};
+    obj.collectionName = getModelName(document.constructor.modelName);
+    obj.collectionId = document._id;
+    obj.diff = diff || {};
+
+    if (document.__history) {
+      obj.event = document.__history.event;
+      obj[pluginOptions.userFieldName] = document.__history[
+        pluginOptions.userFieldName
+      ];
+      obj[pluginOptions.accountFieldName] =
+      document[pluginOptions.accountFieldName] ||
+      document.__history[pluginOptions.accountFieldName];
+      obj.reason = document.__history.reason;
+      obj.data = document.__history.data;
+      obj[pluginOptions.methodFieldName] = document.__history[
+        pluginOptions.methodFieldName
+      ];
+    }
+
+    let version;
+
+    if (lastHistory) {
+      let type =
+      document.__history && document.__history.type
+        ? document.__history.type
+        : 'major';
+
+      version = semver.inc(lastHistory.version, type);
+    }
+
+    obj.version = version || '0.0.0';
+    for (let i in obj) {
+      if (obj[i] === undefined) {
+        delete obj[i];
+      }
+    }
+
+    let history = new Model(obj);
+
+    document.__history = undefined;
+    await history.save();
+  };
+
   return function (schema) {
     schema.add({
       __history: { type: mongoose.Schema.Types.Mixed }
     });
 
     let preSave = function (forceSave) {
-      return function (next) {
-        if (this.__history !== undefined || pluginOptions.noEventSave) {
-          let getPrevious;
-          if (pluginOptions.embeddedDocument) {
-            // because the new version would have been saved already by the parent,
-            // get the older version from the history collection
-            getPrevious = this.getVersions().then(versions => {
-              return versions[0] ?
-                versions[0].object :
-                {};
+      return async function (next) {
+        let currentDocument = this;
+        if (currentDocument.__history !== undefined || pluginOptions.noEventSave) {
+          try {
+
+            let previousVersion = await getPreviousVersion(currentDocument);
+            let populatedFields = getPopulatedFields(currentDocument);
+
+            if (pluginOptions.ignorePopulatedFields) {
+              depopulate(currentDocument, populatedFields);
+            }
+
+            let currentObject = cleanFields(cloneObjectByJson(currentDocument));
+            let previousObject = cleanFields(cloneObjectByJson(previousVersion));
+
+            if (pluginOptions.ignorePopulatedFields) {
+              await repopulate(currentDocument, populatedFields);
+            }
+
+            let {diff, saveWithoutDiff} = getDiff({
+              current: currentObject,
+              prev: previousObject,
+              document: currentDocument,
+              forceSave
             });
-          } else {
-            getPrevious = this.constructor.findById(this._id);
+
+            if (diff || pluginOptions.noDiffSave || saveWithoutDiff) {
+              await saveHistory({document: currentDocument, diff});
+            }
+
+            return next();
+          } catch (error) {
+            return next(error);
           }
-
-          return getPrevious
-            .then((previous) => {
-              let currentObject = JSON.parse(JSON.stringify(this)),
-                previousObject = previous
-                  ? JSON.parse(JSON.stringify(previous))
-                  : {};
-
-              delete currentObject.__history;
-              delete previousObject.__history;
-              delete currentObject.__v;
-              delete previousObject.__v;
-
-              for (let i in pluginOptions.ignore) {
-                delete currentObject[pluginOptions.ignore[i]];
-                delete previousObject[pluginOptions.ignore[i]];
-              }
-
-              let diff = jdf.diff(previousObject, currentObject);
-
-              let saveWithoutDiff = false;
-              if (this.__history && pluginOptions.noDiffSaveOnMethods.length) {
-                let method = this.__history[pluginOptions.methodFieldName];
-                if (pluginOptions.noDiffSaveOnMethods.includes(method)) {
-                  saveWithoutDiff = true;
-                  if (forceSave) {
-                    diff = previousObject;
-                  }
-                }
-              }
-
-              if (diff || pluginOptions.noDiffSave || saveWithoutDiff) {
-                return Model.findOne({
-                  collectionName: getModelName(this.constructor.modelName),
-                  collectionId: this._id
-                })
-                  .sort('-' + pluginOptions.timestampFieldName)
-                  .select({ version: 1 })
-                  .then((lastHistory) => {
-                    let obj = {};
-                    obj.collectionName = getModelName(this.constructor.modelName);
-                    obj.collectionId = this._id;
-                    obj.diff = diff || {};
-
-                    if (this.__history) {
-                      obj.event = this.__history.event;
-                      obj[pluginOptions.userFieldName] = this.__history[
-                        pluginOptions.userFieldName
-                      ];
-                      obj[pluginOptions.accountFieldName] =
-                        this[pluginOptions.accountFieldName] ||
-                        this.__history[pluginOptions.accountFieldName];
-                      obj.reason = this.__history.reason;
-                      obj.data = this.__history.data;
-                      obj[pluginOptions.methodFieldName] = this.__history[
-                        pluginOptions.methodFieldName
-                      ];
-                    }
-
-                    let version;
-
-                    if (lastHistory) {
-                      let type =
-                        this.__history && this.__history.type
-                          ? this.__history.type
-                          : 'major';
-
-                      version = semver.inc(lastHistory.version, type);
-                    }
-
-                    obj.version = version || '0.0.0';
-                    for (let i in obj) {
-                      if (obj[i] === undefined) {
-                        delete obj[i];
-                      }
-                    }
-
-                    let history = new Model(obj);
-
-                    this.__history = undefined;
-                    return history.save();
-                  });
-              }
-            })
-            .then(() => next())
-            // Call next with error
-            .catch(next);
         }
 
         next();
@@ -250,80 +309,81 @@ let historyPlugin = (options = {}) => {
     };
 
     // versions.get
-    schema.methods.getVersion = function (version2get, includeObject = true) {
-      return this.getDiffs({
+    schema.methods.getVersion = async function (version2get, includeObject = true) {
+      let histories = await this.getDiffs({
         sort: pluginOptions.timestampFieldName
-      }).then((histories) => {
-        let lastVersion = histories[histories.length - 1],
-          firstVersion = histories[0],
-          history,
-          version = {};
-
-        if (semver.gt(version2get, lastVersion.version)) {
-          version2get = lastVersion.version;
-        }
-
-        if (semver.lt(version2get, firstVersion.version)) {
-          version2get = firstVersion.version;
-        }
-
-        histories.map((item) => {
-          if (item.version === version2get) {
-            history = item;
-          }
-        });
-
-        if (!includeObject) {
-          return history;
-        }
-
-        histories.map((item) => {
-          if (
-            semver.lt(item.version, version2get) ||
-            item.version === version2get
-          ) {
-            version = jdf.patch(version, item.diff);
-          }
-        });
-
-        delete history.diff;
-        history.object = version;
-
-        return history;
       });
+
+      let lastVersion = histories[histories.length - 1],
+        firstVersion = histories[0],
+        history,
+        version = {};
+
+      if (semver.gt(version2get, lastVersion.version)) {
+        version2get = lastVersion.version;
+      }
+
+      if (semver.lt(version2get, firstVersion.version)) {
+        version2get = firstVersion.version;
+      }
+
+      histories.map((item) => {
+        if (item.version === version2get) {
+          history = item;
+        }
+      });
+
+      if (!includeObject) {
+        return history;
+      }
+
+      histories.map((item) => {
+        if (
+          semver.lt(item.version, version2get) ||
+            item.version === version2get
+        ) {
+          version = jdf.patch(version, item.diff);
+        }
+      });
+
+      delete history.diff;
+      history.object = version;
+
+      return history;
+
     };
 
     // versions.compare
-    schema.methods.compareVersions = function (versionLeft, versionRight) {
-      return this.getVersion(versionLeft).then((versionLeft) => {
-        return this.getVersion(versionRight).then((versionRight) => {
-          return {
-            diff: jdf.diff(versionLeft.object, versionRight.object),
-            left: versionLeft.object,
-            right: versionRight.object
-          };
-        });
-      });
+    schema.methods.compareVersions = async function (versionLeft, versionRight) {
+      let versionLeftDocument = await this.getVersion(versionLeft);
+      let versionRightDocument = await this.getVersion(versionRight);
+
+      return {
+        diff: jdf.diff(versionLeftDocument.object, versionRightDocument.object),
+        left: versionLeftDocument.object,
+        right: versionRightDocument.object
+      };
     };
 
     // versions.find
-    schema.methods.getVersions = function (options = {}, includeObject = true) {
+    schema.methods.getVersions = async function (options = {}, includeObject = true) {
       options.sort = options.sort || pluginOptions.timestampFieldName;
 
-      return this.getDiffs(options).then((histories) => {
-        if (!includeObject) {
-          return histories;
-        }
+      let histories = await this.getDiffs(options);
 
-        let version = {};
-        for (let i = 0; i < histories.length; i++) {
-          version = jdf.patch(version, histories[i].diff);
-          histories[i].object = jdf.clone(version);
-          delete histories[i].diff;
-        }
-
+      if (!includeObject) {
         return histories;
-      });
+      }
+
+      let version = {};
+      for (let i = 0; i < histories.length; i++) {
+        version = jdf.patch(version, histories[i].diff);
+        histories[i].object = jdf.clone(version);
+        delete histories[i].diff;
+      }
+
+      return histories;
+
     };
   };
 };

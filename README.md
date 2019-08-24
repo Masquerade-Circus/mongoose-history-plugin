@@ -14,11 +14,31 @@ Mongoose plugin that saves documents history in [JsonPatch](http://jsonpatch.com
 
 ## Table of Contents
 
--   [Install](#install)
--   [Use](#use)
--   [Tests](#tests)
--   [Contributing](#contributing)
--   [Legal](#legal)
+- [mongoose-history-plugin](#mongoose-history-plugin)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Install](#install)
+  - [Use](#use)
+  - [Document Methods](#document-methods)
+    - [document.getDiffs([findQuery])](#documentgetdiffsfindquery)
+    - [document.getDiff(version)](#documentgetdiffversion)
+    - [document.getVersions([findQuery])](#documentgetversionsfindquery)
+    - [document.getVersion(version)](#documentgetversionversion)
+    - [document.compareVersions(versionLeft, versionRight)](#documentcompareversionsversionleft-versionright)
+  - [Tests](#tests)
+  - [Contributing](#contributing)
+  - [Legal](#legal)
+
+## Features
+
+-   Multiple history collections or one shared collection for the schemas
+-   Reference an account within the saved history
+-   Reference the user that performes the event within the saved history
+-   Save history for embedded documents
+-   Save history for populated fields
+-   Get diffs in JsonPatch format
+-   Get documents state for each version
+-   Compare two different versions
 
 ## Install
 
@@ -43,6 +63,7 @@ mongoose.connect('mongodb://localhost/Default');
 
 // Default options
 let options = {
+  mongoose: mongoose, // A mongoose instance
   userCollection: 'users', // Colletcion to ref when you pass an user id
   accountCollection: 'accounts', // Collection to ref when you pass an account id or the item has an account property
   userFieldName: 'user', // Name of the property for the user
@@ -56,7 +77,12 @@ let options = {
   modelName: '__histories', // Name of the collection for the histories
   embeddedDocument: false, // Is this a sub document
   embeddedModelName: '', // Name of model if used with embedded document
-  mongoose: mongoose // A mongoose instance
+
+  // If true save only the _id of the populated fields
+  // If false save the whole object of the populated fields
+  // If false and a populated field property changes it triggers a new history
+  // You need to populate the field after a change is made on the original document or it will not catch the differences
+  ignorePopulatedFields: true
 };
 
 // Add the plugin to the schema with default options
@@ -98,7 +124,7 @@ small
   })
   .then((small) => {
     // All options are optional
-    let options = {
+    let query = {
       find: {}, // Must be an object
       select: {}, // Must be an object
       sort: '',
@@ -107,19 +133,98 @@ small
     };
 
     // Get the diff histories in JsonDiffPatch format
-    small.getDiffs(options).then(console.log);
+    small.getDiffs(query).then(console.log);
+    /*
+    [ 
+      { 
+        version: '1.0.0',
+        diff: { name: [ 'Small tank' ] },
+        event: 'updated',
+        method: 'updateTank',
+        timestamp: 2019-08-24T12:04:15.253Z },
+      { 
+        version: '0.0.0',
+        diff: { _id: [ '5d6127bf3a50db72bc8cbed2' ], size: [ 'small' ] },
+        event: 'created',
+        method: 'newTank',
+        timestamp: 2019-08-24T12:04:15.157Z 
+      } 
+    ]
+    */
 
     // Get a diff history in JsonDiffPatch format
     small.getDiff('1.0.0').then(console.log);
 
+    /*
+    { 
+      _id: 5d6127bf3a50db72bc8cbed4,
+      version: '1.0.0',
+      collectionName: 'tank6',
+      collectionId: 5d6127bf3a50db72bc8cbed2,
+      diff: { name: [ 'Small tank' ] },
+      event: 'updated',
+      method: 'updateTank',
+      timestamp: 2019-08-24T12:04:15.253Z 
+    }
+    */
+
     // Get the versions
-    small.getVersions(options).then(console.log);
+    small.getVersions(query).then(console.log);
+    /*
+    [ 
+      { 
+        version: '1.0.0',
+        event: 'updated',
+        method: 'updateTank',
+        timestamp: 2019-08-24T12:04:15.253Z,
+        object: { name: 'Small tank' } 
+      },
+      { 
+        version: '0.0.0',
+        event: 'created',
+        method: 'newTank',
+        timestamp: 2019-08-24T12:04:15.157Z,
+        object: { 
+          name: 'Small tank',
+          _id: '5d6127bf3a50db72bc8cbed2',
+          size: 'small' 
+        } 
+      } 
+    ]
+    */
 
     // Get a version
     small.getVersion('1.0.0').then(console.log);
+    /*
+    { 
+      _id: 5d6127bf3a50db72bc8cbed4,
+      version: '1.0.0',
+      collectionName: 'tank6',
+      collectionId: 5d6127bf3a50db72bc8cbed2,
+      event: 'updated',
+      method: 'updateTank',
+      timestamp: 2019-08-24T12:04:15.253Z,
+      object: { 
+        _id: '5d6127bf3a50db72bc8cbed2',
+        size: 'small',
+        name: 'Small tank' 
+      } 
+    }
+    */
 
     // Compare two versions
     small.compareVersions('0.0.0', '1.0.0').then(console.log);
+    /*
+    { 
+      diff: { name: [ 'Small tank' ] },
+      left: { _id: '5d6127bf3a50db72bc8cbed2', size: 'small' },
+      right: { 
+        _id: '5d6127bf3a50db72bc8cbed2',
+        size: 'small',
+        name: 'Small tank' 
+      } 
+    }
+    */
   });
 
 small
@@ -138,7 +243,7 @@ small
   })
   .then((small) => {
     // All options are optional
-    let options = {
+    let query = {
       find: {}, // Must be an object
       select: {}, // Must be an object
       sort: '',
@@ -147,13 +252,13 @@ small
     };
 
     // Get the diff histories in JsonDiffPatch format
-    small.getDiffs(options).then(console.log);
+    small.getDiffs(query).then(console.log);
 
     // Get a diff history in JsonDiffPatch format
     small.getDiff('2.0.0').then(console.log);
 
     // Get the versions
-    small.getVersions(options).then(console.log);
+    small.getVersions(query).then(console.log);
 
     // Get a version
     small.getVersion('2.0.0').then(console.log);
@@ -179,6 +284,92 @@ AnotherSchema.plugin(
     Object.assign({}, options, { modelName: 'anotherCollectionName_versions' })
   )
 );
+```
+
+## Document Methods
+
+### document.getDiffs([findQuery])
+
+  Returns an array of all the histories of the document. You can pass a options object that will be passed to a collection find method.
+
+  The returned objects within the array have the next shape: 
+
+```javascript
+  { 
+    version, // The version of the document according to the SemVer format 
+    diff, // Changes made in this version diffed against the previous version and according to the JsonPatch format
+    event, // The event that create this version if any
+    method, // The name of the method that create this version if any
+    timestamp // The timestamp in which this version was created
+  }
+```
+
+### document.getDiff(version)
+
+  Returns the version history for this document. 
+
+  The returned object has the next shape: 
+
+```javascript
+  { 
+    _id, // ObjectId for this history
+    version, // The version of the document according to the SemVer format 
+    collectionName, // Name of the collection that belongs to this document
+    collectionId, // ObjectId of the document
+    diff, // Changes made in this version diffed against the previous version and according to the JsonPatch format
+    event, // The event that create this version if any
+    method, // The name of the method that create this version if any
+    timestamp // The timestamp in which this version was created
+  }
+```
+
+### document.getVersions([findQuery])
+
+  Returns an array of all the versions of the document. You can pass a options object that will be passed to a collection find method.
+
+  The returned objects within the array have the next shape: 
+
+```javascript
+{ 
+  version, // The version of the document according to the SemVer format 
+  event, // The event that create this version if any
+  method, // The name of the method that create this version if any
+  timestamp // The timestamp in which this version was created
+  object // Object with the properties changed in this version diffed against the previous version 
+}
+```
+
+### document.getVersion(version)
+
+  Returns the document as it was at the time of this version.
+
+  The returned object has the next shape: 
+
+```javascript
+  { 
+    _id, // ObjectId for this history
+    version, // The version of the document according to the SemVer format 
+    collectionName, // Name of the collection that belongs to this document
+    collectionId, // ObjectId of the document
+    event, // The event that create this version if any
+    method, // The name of the method that create this version if any
+    timestamp, // The timestamp in which this version was created
+    object // The complete object as it was at this version
+  }
+```
+
+### document.compareVersions(versionLeft, versionRight)
+
+  Returns the differences between two versions of the document.
+
+  The returned object has the next shape:
+
+```javascript
+{ 
+  diff, // The differences between the two versions according to the JsonPatch format
+  left, // The document as it was at the left version
+  right // The document as it was at the right version
+}
 ```
 
 ## Tests
