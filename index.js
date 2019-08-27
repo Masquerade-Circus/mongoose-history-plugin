@@ -34,8 +34,8 @@ let historyPlugin = (options = {}) => {
 
   let mongoose = pluginOptions.mongoose;
 
-  const collectionIdType = options.collectionIdType || mongoose.Schema.Types.ObjectId
-  
+  const collectionIdType = options.collectionIdType || mongoose.Schema.Types.ObjectId;
+
   let Schema = new mongoose.Schema(
     {
       collectionName: String,
