@@ -13,6 +13,7 @@ let historyPlugin = (options = {}) => {
     accountFieldName: 'account', // Name of the property of the account if any
     timestampFieldName: 'timestamp', // Name of the property of the timestamp
     methodFieldName: 'method', // Name of the property of the method
+    collectionIdType: false, // Cast type for _id (support for other binary types like uuid)
     ignore: [], // List of fields to ignore when compare changes
     noDiffSave: false, // Save event even if there are no changes
     noDiffSaveOnMethods: [], // Save event even if there are no changes if method matches
@@ -33,10 +34,12 @@ let historyPlugin = (options = {}) => {
 
   let mongoose = pluginOptions.mongoose;
 
+  const collectionIdType = options.collectionIdType || mongoose.Schema.Types.ObjectId;
+
   let Schema = new mongoose.Schema(
     {
       collectionName: String,
-      collectionId: { type: mongoose.Schema.Types.ObjectId },
+      collectionId: { type: collectionIdType },
       diff: {},
       event: String,
       reason: String,
