@@ -70,6 +70,7 @@ let options = {
   accountFieldName: 'account', // Name of the property of the account if any
   timestampFieldName: 'timestamp', // Name of the property of the timestamp
   methodFieldName: 'method', // Name of the property of the method
+  collectionIdType: false, // Cast type for _id (support for other binary types like uuid) defaults to ObjectId
   ignore: [], // List of fields to ignore when compare changes
   noDiffSave: false, // If true save event even if there are no changes
   noDiffSaveOnMethods: ['delete'], // If a method is in this list, it saves history even if there is no diff.
