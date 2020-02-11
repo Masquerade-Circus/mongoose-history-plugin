@@ -7,15 +7,21 @@ let historyPlugin = (options = {}) => {
     modelName: '__histories', // Name of the collection for the histories
     embeddedDocument: false, // Is this a sub document
     embeddedModelName: '', // Name of model if used with embedded document
-    userCollection: 'users', // Collection to ref when you pass an user id
-    accountCollection: 'accounts', // Collection to ref when you pass an account id or the item has an account property
-    userFieldName: 'user', // Name of the property for the user
-    accountFieldName: 'account', // Name of the property of the account if any
-    timestampFieldName: 'timestamp', // Name of the property of the timestamp
-    methodFieldName: 'method', // Name of the property of the method
+    fieldNames : { // Field names for the history schema
+      user: "user",
+      account: "account",
+      timestamp: "timestamp",
+      method: "method"
+    },
+    user : { 
+      ref : 'users', // schema user reference collection 
+      type : false, // schema user reference type
+    },
+    account : {
+      ref: 'accounts', //  schema account reference collection 
+      type: false, // schema account reference type
+    },
     collectionIdType: false, // Cast type for collection._id (support for other binary types like uuid)
-    userIdType: false, // Cast type for user._id (support for other binary types like uuid)
-    accountIdType: false, // Cast type for account._id (support for other binary types like uuid)
     ignore: [], // List of fields to ignore when compare changes
     noDiffSave: false, // Save event even if there are no changes
     noDiffSaveOnMethods: [], // Save event even if there are no changes if method matches
@@ -37,8 +43,8 @@ let historyPlugin = (options = {}) => {
   let mongoose = pluginOptions.mongoose;
 
   const collectionIdType = options.collectionIdType || mongoose.Schema.Types.ObjectId;
-  const userIdType = options.userIdType || mongoose.Schema.Types.ObjectId;
-  const accountIdType = options.accountIdType || mongoose.Schema.Types.ObjectId;
+  pluginOptions.user.type = pluginOptions.user.type || mongoose.Schema.Types.ObjectId;
+  pluginOptions.account.type = pluginOptions.account.type || mongoose.Schema.Types.ObjectId;
 
   let Schema = new mongoose.Schema(
     {
@@ -48,17 +54,11 @@ let historyPlugin = (options = {}) => {
       event: String,
       reason: String,
       data: { type: mongoose.Schema.Types.Mixed },
-      [pluginOptions.userFieldName]: {
-        type: userIdType,
-        ref: pluginOptions.userCollection
-      },
-      [pluginOptions.accountFieldName]: {
-        type: accountIdType,
-        ref: pluginOptions.accountCollection
-      },
-      version: { type: String, default: '0.0.0' },
-      [pluginOptions.timestampFieldName]: Date,
-      [pluginOptions.methodFieldName]: String
+      [pluginOptions.fieldNames.user]: pluginOptions.user,
+      [pluginOptions.fieldNames.account]: pluginOptions.account,
+      [pluginOptions.fieldNames.timestamp]: Date,
+      [pluginOptions.fieldNames.method]: String,
+      version: { type: String, default: '0.0.0' }
     },
     {
       collection: pluginOptions.modelName
@@ -70,7 +70,7 @@ let historyPlugin = (options = {}) => {
   Schema.set('strict', true);
 
   Schema.pre('save', function (next) {
-    this[pluginOptions.timestampFieldName] = new Date();
+    this[pluginOptions.fieldNames.timestamp] = new Date();
     next();
   });
 
@@ -201,16 +201,16 @@ let historyPlugin = (options = {}) => {
 
     if (document.__history) {
       obj.event = document.__history.event;
-      obj[pluginOptions.userFieldName] = document.__history[
-        pluginOptions.userFieldName
+      obj[pluginOptions.fieldNames.user] = document.__history[
+        pluginOptions.fieldNames.user
       ];
-      obj[pluginOptions.accountFieldName] =
-      document[pluginOptions.accountFieldName] ||
-      document.__history[pluginOptions.accountFieldName];
+      obj[pluginOptions.fieldNames.account] =
+      document[pluginOptions.fieldNames.account] ||
+      document.__history[pluginOptions.fieldNames.account];
       obj.reason = document.__history.reason;
       obj.data = document.__history.data;
-      obj[pluginOptions.methodFieldName] = document.__history[
-        pluginOptions.methodFieldName
+      obj[pluginOptions.fieldNames.method] = document.__history[
+        pluginOptions.fieldNames.method
       ];
     }
 
@@ -296,7 +296,7 @@ let historyPlugin = (options = {}) => {
         collectionId: this._id
       });
 
-      options.sort = options.sort || '-' + pluginOptions.timestampFieldName;
+      options.sort = options.sort || '-' + pluginOptions.fieldNames.timestamp;
 
       return query('find', options);
     };
@@ -310,7 +310,7 @@ let historyPlugin = (options = {}) => {
         version: version
       });
 
-      options.sort = options.sort || '-' + pluginOptions.timestampFieldName;
+      options.sort = options.sort || '-' + pluginOptions.fieldNames.timestamp;
 
       return query('findOne', options);
     };
@@ -318,7 +318,7 @@ let historyPlugin = (options = {}) => {
     // versions.get
     schema.methods.getVersion = async function (version2get, includeObject = true) {
       let histories = await this.getDiffs({
-        sort: pluginOptions.timestampFieldName
+        sort: pluginOptions.fieldNames.timestamp
       });
 
       let lastVersion = histories[histories.length - 1],
@@ -374,7 +374,7 @@ let historyPlugin = (options = {}) => {
 
     // versions.find
     schema.methods.getVersions = async function (options = {}, includeObject = true) {
-      options.sort = options.sort || pluginOptions.timestampFieldName;
+      options.sort = options.sort || pluginOptions.fieldNames.timestamp;
 
       let histories = await this.getDiffs(options);
 
