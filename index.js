@@ -8,18 +8,18 @@ let historyPlugin = (options = {}) => {
     embeddedDocument: false, // Is this a sub document
     embeddedModelName: '', // Name of model if used with embedded document
     fieldNames : { // Field names for the history schema
-      user: "user",
-      account: "account",
-      timestamp: "timestamp",
-      method: "method"
+      user: "user", // maps to the user
+      account: "account", // maps to the account
+      timestamp: "timestamp", // maps to a Date 
+      method: "method" // maps to a String
     },
-    user : { 
-      ref : 'users', // schema user reference collection 
-      type : false, // schema user reference type
+    user : { // history schema user definition
+      ref : 'users', // user reference collection 
+      type : false // user reference type, falsey will default to ObjectId
     },
-    account : {
-      ref: 'accounts', //  schema account reference collection 
-      type: false, // schema account reference type
+    account : { // history schema account definition
+      ref: 'accounts', // account reference collection 
+      type: false // account reference type, falsey will default to ObjectId
     },
     collectionIdType: false, // Cast type for collection._id (support for other binary types like uuid)
     ignore: [], // List of fields to ignore when compare changes
@@ -33,7 +33,24 @@ let historyPlugin = (options = {}) => {
     // You need to populate the field after a change is made on the original document or it will not catch the differences
     ignorePopulatedFields: true
   };
-
+  
+  // Object.assign is not deep so we must do the deep assignments first and then remove them from the options
+  
+  if(options.fieldNames) {
+    Object.assign(pluginOptions.fieldNames, options.fieldNames);
+    delete options.fieldNames;
+  }
+  
+  if(options.user) {
+    Object.assign(pluginOptions.user, options.user);
+    delete options.user;
+  }
+  
+  if(options.account) {
+    Object.assign(pluginOptions.account, options.account);
+    delete options.account;
+  }
+  
   Object.assign(pluginOptions, options);
 
   if (pluginOptions.mongoose === false) {
