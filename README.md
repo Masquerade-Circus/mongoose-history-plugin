@@ -64,19 +64,19 @@ mongoose.connect('mongodb://localhost/Default');
 // Default options
 let options = {
   mongoose: mongoose, // A mongoose instance
-  user : { 
-      ref : 'users', // schema user reference collection 
-      type : false, // schema user reference type
+  user : { // history schema user definition
+      ref : 'users', // user reference collection 
+      type : false, // user reference type, falsey will default to ObjectId
   },
-  account : {
-      ref: 'accounts', //  schema account reference collection 
-      type: false, // schema account reference type
+  account : { // history schema account definition
+      ref: 'accounts', // account reference collection 
+      type: false, // account reference type, falsey will default to ObjectId
   },
   fieldNames : { // Field names for the history schema
-      user: "user",
-      account: "account",
-      timestamp: "timestamp",
-      method: "method"
+      user: "user", // maps to the user above
+      account: "account", // maps to the account above
+      timestamp: "timestamp", // maps to a Date 
+      method: "method" // maps to a String
   },
   collectionIdType: false, // Cast type for _id (support for other binary types like uuid) defaults to ObjectId
   ignore: [], // List of fields to ignore when compare changes
