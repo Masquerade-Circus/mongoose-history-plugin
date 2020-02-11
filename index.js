@@ -14,6 +14,8 @@ let historyPlugin = (options = {}) => {
     timestampFieldName: 'timestamp', // Name of the property of the timestamp
     methodFieldName: 'method', // Name of the property of the method
     collectionIdType: false, // Cast type for _id (support for other binary types like uuid)
+    userIdType: false, // Cast type for _id (support for other binary types like uuid)
+    accountIdType: false, // Cast type for _id (support for other binary types like uuid)
     ignore: [], // List of fields to ignore when compare changes
     noDiffSave: false, // Save event even if there are no changes
     noDiffSaveOnMethods: [], // Save event even if there are no changes if method matches
@@ -35,6 +37,8 @@ let historyPlugin = (options = {}) => {
   let mongoose = pluginOptions.mongoose;
 
   const collectionIdType = options.collectionIdType || mongoose.Schema.Types.ObjectId;
+  const userIdType = options.userIdType || mongoose.Schema.Types.ObjectId;
+  const accountIdType = options.accountIdType || mongoose.Schema.Types.ObjectId;
 
   let Schema = new mongoose.Schema(
     {
@@ -45,11 +49,11 @@ let historyPlugin = (options = {}) => {
       reason: String,
       data: { type: mongoose.Schema.Types.Mixed },
       [pluginOptions.userFieldName]: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: userIdType,
         ref: pluginOptions.userCollection
       },
       [pluginOptions.accountFieldName]: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: accountIdType,
         ref: pluginOptions.accountCollection
       },
       version: { type: String, default: '0.0.0' },
