@@ -8,7 +8,9 @@ let historyPlugin = (options = {}) => {
     embeddedDocument: false, // Is this a sub document
     embeddedModelName: '', // Name of model if used with embedded document
     userCollection: 'users', // Collection to ref when you pass an user id
+    userCollectionIdType: false, // Type for user collection ref id, defaults to ObjectId
     accountCollection: 'accounts', // Collection to ref when you pass an account id or the item has an account property
+    accountCollectionIdType: false, // Type for account collection ref id, defaults to ObjectId
     userFieldName: 'user', // Name of the property for the user
     accountFieldName: 'account', // Name of the property of the account if any
     timestampFieldName: 'timestamp', // Name of the property of the timestamp
@@ -35,6 +37,8 @@ let historyPlugin = (options = {}) => {
   let mongoose = pluginOptions.mongoose;
 
   const collectionIdType = options.collectionIdType || mongoose.Schema.Types.ObjectId;
+  const userCollectionIdType = options.userCollectionIdType || mongoose.Schema.Types.ObjectId;
+  const accountCollectionIdType = options.accountCollectionIdType || mongoose.Schema.Types.ObjectId;
 
   let Schema = new mongoose.Schema(
     {
@@ -45,11 +49,11 @@ let historyPlugin = (options = {}) => {
       reason: String,
       data: { type: mongoose.Schema.Types.Mixed },
       [pluginOptions.userFieldName]: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: userCollectionIdType,
         ref: pluginOptions.userCollection
       },
       [pluginOptions.accountFieldName]: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: accountCollectionIdType,
         ref: pluginOptions.accountCollection
       },
       version: { type: String, default: '0.0.0' },
