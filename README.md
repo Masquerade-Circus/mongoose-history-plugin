@@ -65,7 +65,9 @@ mongoose.connect('mongodb://localhost/Default');
 let options = {
   mongoose: mongoose, // A mongoose instance
   userCollection: 'users', // Colletcion to ref when you pass an user id
+  userCollectionIdType: false, // Type for user collection ref id, defaults to ObjectId
   accountCollection: 'accounts', // Collection to ref when you pass an account id or the item has an account property
+  accountCollectionIdType: false, // Type for account collection ref id, defaults to ObjectId
   userFieldName: 'user', // Name of the property for the user
   accountFieldName: 'account', // Name of the property of the account if any
   timestampFieldName: 'timestamp', // Name of the property of the timestamp
