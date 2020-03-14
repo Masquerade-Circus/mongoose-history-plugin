@@ -24,6 +24,7 @@ const options = {
   noDiffSaveOnMethods: ['delete'], // If a method is in this list, it saves history even if there is no diff.
   noEventSave: true, // If false save only when __history property is passed
   modelName: '__histories', // Name of the collection for the histories
+  startingVersion: '0.0.0', // Default starting version
 
   // If true save only the _id of the populated fields
   // If false save the whole object of the populated fields
@@ -713,4 +714,30 @@ test('should test the readme example', async (t) => {
     }
   });
 
+});
+
+test('should create history with starting version', async () => {
+  const HistoryPlugin = MongooseHistoryPlugin({ ...options, modelName: '__histories_version', startingVersion: '1.0.0' });
+
+  const CompiledSchema2 = mongoose.Schema({ name: 'string', size: 'string' });
+  CompiledSchema2.plugin(HistoryPlugin);
+
+  let Tank = mongoose.model('tank7', CompiledSchema2);
+  let small = new Tank({
+    size: 'small'
+  });
+
+  await small.save();
+  let diffs = await small.getDiffs();
+
+  expect(diffs).toEqual([
+    {
+      _id: expect.any(Object),
+      version: '1.0.0',
+      collectionName: 'tank7',
+      collectionId: small._id,
+      diff: { _id: [String(small._id)], size: ['small'] },
+      timestamp: expect.any(Date)
+    }
+  ]);
 });

@@ -20,6 +20,7 @@ let historyPlugin = (options = {}) => {
     noDiffSave: false, // Save event even if there are no changes
     noDiffSaveOnMethods: [], // Save event even if there are no changes if method matches
     noEventSave: true, // If false save only when __history property is passed
+    startingVersion: '0.0.0', // Default starting version
 
     // If true save only the _id of the populated fields
     // If false save the whole object of the populated fields
@@ -56,7 +57,7 @@ let historyPlugin = (options = {}) => {
         type: accountCollectionIdType,
         ref: pluginOptions.accountCollection
       },
-      version: { type: String, default: '0.0.0' },
+      version: { type: String, default: pluginOptions.startingVersion },
       [pluginOptions.timestampFieldName]: Date,
       [pluginOptions.methodFieldName]: String
     },
@@ -225,7 +226,7 @@ let historyPlugin = (options = {}) => {
       version = semver.inc(lastHistory.version, type);
     }
 
-    obj.version = version || '0.0.0';
+    obj.version = version || pluginOptions.startingVersion;
     for (let i in obj) {
       if (obj[i] === undefined) {
         delete obj[i];
