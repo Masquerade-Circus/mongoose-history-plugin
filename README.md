@@ -14,20 +14,25 @@ Mongoose plugin that saves documents history in [JsonPatch](http://jsonpatch.com
 
 ## Table of Contents
 
-- [mongoose-history-plugin](#mongoose-history-plugin)
-  - [Table of Contents](#table-of-contents)
-  - [Features](#features)
-  - [Install](#install)
-  - [Use](#use)
-  - [Document Methods](#document-methods)
-    - [document.getDiffs([findQuery])](#documentgetdiffsfindquery)
-    - [document.getDiff(version)](#documentgetdiffversion)
-    - [document.getVersions([findQuery])](#documentgetversionsfindquery)
-    - [document.getVersion(version)](#documentgetversionversion)
-    - [document.compareVersions(versionLeft, versionRight)](#documentcompareversionsversionleft-versionright)
-  - [Tests](#tests)
-  - [Contributing](#contributing)
-  - [Legal](#legal)
+-   [Features](#features)
+
+-   [Install](#install)
+
+-   [Use](#use)
+
+-   [Document Methods](#document-methods)
+
+    -   [document.getDiffs(findQuery)](#documentgetdiffsfindquery)
+    -   [document.getDiff(version)](#documentgetdiffversion)
+    -   [document.getVersions(findQuery)](#documentgetversionsfindquery)
+    -   [document.getVersion(version)](#documentgetversionversion)
+    -   [document.compareVersions(versionLeft, versionRight)](#documentcompareversionsversionleft-versionright)
+
+-   [Tests](#tests)
+
+-   [Contributing](#contributing)
+
+-   [Legal](#legal)
 
 ## Features
 
