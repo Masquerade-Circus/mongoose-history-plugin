@@ -131,6 +131,22 @@ small
     return small.save();
   })
   .then((small) => {
+    // Create another history version
+    small.name = 'Smallest tank';
+
+    // History property is optional by default
+    small.__history = {
+      event: 'updated',
+      user: undefined,
+      reason: undefined,
+      data: undefined,
+      type: undefined,
+      method: 'updateTank'
+    };
+
+    return small.save();
+  })
+  .then((small) => {
     // All options are optional
     let query = {
       find: {}, // Must be an object
@@ -144,6 +160,12 @@ small
     small.getDiffs(query).then(console.log);
     /*
     [ 
+      { 
+        version: '2.0.0',
+        diff: { name: ['Small tank', 'Smallest tank'] },
+        event: 'updated',
+        method: 'updateTank',
+        timestamp: 2019-08-24T12:04:15.253Z },
       { 
         version: '1.0.0',
         diff: { name: [ 'Small tank' ] },
@@ -180,6 +202,13 @@ small
     small.getVersions(query).then(console.log);
     /*
     [ 
+      {
+        version: '2.0.0',
+        event: 'updated',
+        method: 'updateTank',
+        timestamp: expect.any(Date),
+        object: { name: 'Smallest tank' }
+      },
       { 
         version: '1.0.0',
         event: 'updated',

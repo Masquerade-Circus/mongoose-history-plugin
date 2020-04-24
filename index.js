@@ -120,10 +120,10 @@ let historyPlugin = (options = {}) => {
   };
 
   let getPreviousVersion = async (document) => {
-    // get the older version from the history collection
+    // get the oldest version from the history collection
     let versions = await document.getVersions();
-    return versions[0] ?
-      versions[0].object :
+    return versions[versions.length - 1] ?
+      versions[versions.length - 1].object :
       {};
   };
 
@@ -166,7 +166,7 @@ let historyPlugin = (options = {}) => {
     return object;
   };
 
-  let getDiff = ({prev, current, document, forceSave}) => {
+  let getDiff = ({ prev, current, document, forceSave }) => {
     let diff = jdf.diff(prev, current);
 
     let saveWithoutDiff = false;
@@ -186,7 +186,7 @@ let historyPlugin = (options = {}) => {
     };
   };
 
-  let saveHistory = async ({document, diff}) => {
+  let saveHistory = async ({ document, diff }) => {
     let lastHistory = await Model.findOne({
       collectionName: getModelName(document.constructor.modelName),
       collectionId: document._id
@@ -206,8 +206,8 @@ let historyPlugin = (options = {}) => {
         pluginOptions.userFieldName
       ];
       obj[pluginOptions.accountFieldName] =
-      document[pluginOptions.accountFieldName] ||
-      document.__history[pluginOptions.accountFieldName];
+        document[pluginOptions.accountFieldName] ||
+        document.__history[pluginOptions.accountFieldName];
       obj.reason = document.__history.reason;
       obj.data = document.__history.data;
       obj[pluginOptions.methodFieldName] = document.__history[
@@ -219,9 +219,9 @@ let historyPlugin = (options = {}) => {
 
     if (lastHistory) {
       let type =
-      document.__history && document.__history.type
-        ? document.__history.type
-        : 'major';
+        document.__history && document.__history.type
+          ? document.__history.type
+          : 'major';
 
       version = semver.inc(lastHistory.version, type);
     }
@@ -264,7 +264,7 @@ let historyPlugin = (options = {}) => {
               await repopulate(currentDocument, populatedFields);
             }
 
-            let {diff, saveWithoutDiff} = getDiff({
+            let { diff, saveWithoutDiff } = getDiff({
               current: currentObject,
               prev: previousObject,
               document: currentDocument,
@@ -272,7 +272,7 @@ let historyPlugin = (options = {}) => {
             });
 
             if (diff || pluginOptions.noDiffSave || saveWithoutDiff) {
-              await saveHistory({document: currentDocument, diff});
+              await saveHistory({ document: currentDocument, diff });
             }
 
             return next();
@@ -348,7 +348,7 @@ let historyPlugin = (options = {}) => {
       histories.map((item) => {
         if (
           semver.lt(item.version, version2get) ||
-            item.version === version2get
+          item.version === version2get
         ) {
           version = jdf.patch(version, item.diff);
         }
