@@ -119,6 +119,8 @@ test('should create history when save a change', async (t) => {
   });
 
   await small.save();
+  small.size = 'medium';
+  await small.save();
   small.size = 'large';
   await small.save();
   let diffs = await small.getDiffs();
@@ -126,10 +128,18 @@ test('should create history when save a change', async (t) => {
   expect(diffs).toEqual([
     {
       _id: expect.any(Object),
+      version: '2.0.0',
+      collectionName: 'tank',
+      collectionId: small._id,
+      diff: { size: ['medium', 'large'] },
+      timestamp: expect.any(Date)
+    },
+    {
+      _id: expect.any(Object),
       version: '1.0.0',
       collectionName: 'tank',
       collectionId: small._id,
-      diff: { size: ['small', 'large'] },
+      diff: { size: ['small', 'medium'] },
       timestamp: expect.any(Date)
     },
     {
@@ -233,6 +243,47 @@ test('should compare two versions', async (t) => {
     },
     left: { _id: String(small._id), size: 'small' },
     right: { _id: String(small._id), size: 'large' }
+  });
+});
+
+test('should compare left version to older version when right version does not exist', async (t) => {
+  let Tank = mongoose.model('tank', CompiledSchema);
+  let small = new Tank({
+    size: 'small'
+  });
+
+  await small.save();
+  small.size = 'large';
+  await small.save();
+  let diff = await small.compareVersions('0.0.0', '2.0.0');
+
+  expect(diff).toEqual({
+    diff: {
+      size: ['small', 'large']
+    },
+    left: { _id: String(small._id), size: 'small' },
+    right: { _id: String(small._id), size: 'large' }
+  });
+});
+
+test('should get the oldest version when provided semver does not exist', async (t) => {
+  let Tank = mongoose.model('tank', CompiledSchema);
+  let small = new Tank({
+    size: 'small'
+  });
+
+  await small.save();
+  small.size = 'large';
+  await small.save();
+  let version = await small.getVersion('2.0.0');
+
+  expect(version).toEqual({
+    _id: expect.any(Object),
+    version: '1.0.0',
+    collectionName: 'tank',
+    collectionId: small._id,
+    object: { _id: String(small._id), size: 'large' },
+    timestamp: expect.any(Date)
   });
 });
 
@@ -620,6 +671,21 @@ test('should test the readme example', async (t) => {
 
   small = await small.save();
 
+  // Create another history version
+  small.name = 'Smallest tank';
+
+  // History property is optional by default
+  small.__history = {
+    event: 'updated',
+    user: undefined,
+    reason: undefined,
+    data: undefined,
+    type: undefined,
+    method: 'updateTank'
+  };
+
+  small = await small.save();
+
   // All options are optional
   let query = {
     find: {}, // Must be an object
@@ -645,13 +711,22 @@ test('should test the readme example', async (t) => {
   let compare = await small.compareVersions('0.0.0', '1.0.0');
 
   expect(diffs).toEqual([
-    { version: '1.0.0',
+    {
+      version: '2.0.0',
+      diff: { name: ['Small tank', 'Smallest tank'] },
+      event: 'updated',
+      method: 'updateTank',
+      timestamp: expect.any(Date)
+    },
+    {
+      version: '1.0.0',
       diff: { name: ['Small tank'] },
       event: 'updated',
       method: 'updateTank',
       timestamp: expect.any(Date)
     },
-    { version: '0.0.0',
+    {
+      version: '0.0.0',
       diff: { _id: [String(small._id)], size: ['small'] },
       event: 'created',
       method: 'newTank',
@@ -671,13 +746,22 @@ test('should test the readme example', async (t) => {
   });
 
   expect(versions).toEqual([
-    { version: '1.0.0',
+    {
+      version: '2.0.0',
+      event: 'updated',
+      method: 'updateTank',
+      timestamp: expect.any(Date),
+      object: { name: 'Smallest tank' }
+    },
+    {
+      version: '1.0.0',
       event: 'updated',
       method: 'updateTank',
       timestamp: expect.any(Date),
       object: { name: 'Small tank' }
     },
-    { version: '0.0.0',
+    {
+      version: '0.0.0',
       event: 'created',
       method: 'newTank',
       timestamp: expect.any(Date),
