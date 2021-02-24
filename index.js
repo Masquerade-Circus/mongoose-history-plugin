@@ -41,41 +41,49 @@ let historyPlugin = (options = {}) => {
   const userCollectionIdType = options.userCollectionIdType || mongoose.Schema.Types.ObjectId;
   const accountCollectionIdType = options.accountCollectionIdType || mongoose.Schema.Types.ObjectId;
 
-  let Schema = new mongoose.Schema(
-    {
-      collectionName: String,
-      collectionId: { type: collectionIdType },
-      diff: {},
-      event: String,
-      reason: String,
-      data: { type: mongoose.Schema.Types.Mixed },
-      [pluginOptions.userFieldName]: {
-        type: userCollectionIdType,
-        ref: pluginOptions.userCollection
+  let Model;
+
+  try {
+    Model = mongoose.model(pluginOptions.modelName);
+  } catch (e) {}
+
+  if (!Model) {
+    let Schema = new mongoose.Schema(
+      {
+        collectionName: String,
+        collectionId: { type: collectionIdType },
+        diff: {},
+        event: String,
+        reason: String,
+        data: { type: mongoose.Schema.Types.Mixed },
+        [pluginOptions.userFieldName]: {
+          type: userCollectionIdType,
+          ref: pluginOptions.userCollection
+        },
+        [pluginOptions.accountFieldName]: {
+          type: accountCollectionIdType,
+          ref: pluginOptions.accountCollection
+        },
+        version: { type: String, default: pluginOptions.startingVersion },
+        [pluginOptions.timestampFieldName]: Date,
+        [pluginOptions.methodFieldName]: String
       },
-      [pluginOptions.accountFieldName]: {
-        type: accountCollectionIdType,
-        ref: pluginOptions.accountCollection
-      },
-      version: { type: String, default: pluginOptions.startingVersion },
-      [pluginOptions.timestampFieldName]: Date,
-      [pluginOptions.methodFieldName]: String
-    },
-    {
-      collection: pluginOptions.modelName
-    }
-  );
+      {
+        collection: pluginOptions.modelName
+      }
+    );
 
-  Schema.set('minimize', false);
-  Schema.set('versionKey', false);
-  Schema.set('strict', true);
+    Schema.set('minimize', false);
+    Schema.set('versionKey', false);
+    Schema.set('strict', true);
 
-  Schema.pre('save', function (next) {
-    this[pluginOptions.timestampFieldName] = new Date();
-    next();
-  });
+    Schema.pre('save', function (next) {
+      this[pluginOptions.timestampFieldName] = new Date();
+      next();
+    });
 
-  let Model = mongoose.model(pluginOptions.modelName, Schema);
+    Model = mongoose.model(pluginOptions.modelName, Schema);
+  }
 
   let getModelName = (defaultName) => {
     return pluginOptions.embeddedDocument ? pluginOptions.embeddedModelName : defaultName;
