@@ -4,6 +4,7 @@ let JsonDiffPatch = require('jsondiffpatch'),
 let historyPlugin = (options = {}) => {
   let pluginOptions = {
     mongoose: false, // A mongoose instance
+    connection: undefined, // DB connection to use instead of default connection
     modelName: '__histories', // Name of the collection for the histories
     embeddedDocument: false, // Is this a sub document
     embeddedModelName: '', // Name of model if used with embedded document
@@ -75,7 +76,8 @@ let historyPlugin = (options = {}) => {
     next();
   });
 
-  let Model = mongoose.model(pluginOptions.modelName, Schema);
+  const connection = pluginOptions.connection || mongoose.connection;
+  let Model = connection.model(pluginOptions.modelName, Schema);
 
   let getModelName = (defaultName) => {
     return pluginOptions.embeddedDocument ? pluginOptions.embeddedModelName : defaultName;

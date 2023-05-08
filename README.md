@@ -69,6 +69,7 @@ mongoose.connect('mongodb://localhost/Default');
 // Default options
 let options = {
   mongoose: mongoose, // A mongoose instance
+  connection: undefined, // DB connection to use instead of default connection
   userCollection: 'users', // Colletcion to ref when you pass an user id
   userCollectionIdType: false, // Type for user collection ref id, defaults to ObjectId
   accountCollection: 'accounts', // Collection to ref when you pass an account id or the item has an account property
